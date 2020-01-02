@@ -1,41 +1,46 @@
-apiVersion: v1
-kind: ReplicationController
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: laravel-app
+  name: laravel-deployment
+  namespace: laravel-app-namespace
+  labels:
+    app: laravel
 spec:
-  replicas: 2
+  replicas: 3
+  selector:
+    matchLabels:
+      app: laravel
   template:
     metadata:
       labels:
-        role: laravel-app
+        app: laravel
     spec:
       volumes:
         - name: shared-files
           emptyDir: {}
 
       containers:
-      - name: laravel-fpm
+      - name: laravel-fpm-pod
         image: gregorip02/laravel-mongo-app
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
-        - containerPort: 9000
-        env:
-          - name: APP_KEY
-            value: base64:cUPmwHx4LXa4Z25HhzFiWCf7TlQmSqnt98pnuiHmzgY=
+          - containerPort: 9000
         volumeMounts:
           - name: shared-files
             mountPath: /opt/data
-
+        env:
+          - name: DB_HOST
+            value: mongo
         lifecycle:
           postStart:
             exec:
-              command: ["/bin/sh", "-c", "cp -rp /opt/app /opt/data/app"]
+              command: ["/bin/sh", "-c", "php artisan key:generate && cp -rp /opt/app /opt/data/app"]
 
       - name: nginx-php
         image: gregorip02/nginx-php
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
-        - containerPort: 80
+          - containerPort: 80
         env:
           - name: NGINX_HOST
             value: kubernetes.gregori.com.ve
