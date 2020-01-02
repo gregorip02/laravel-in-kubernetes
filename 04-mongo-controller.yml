@@ -3,7 +3,7 @@ kind: ReplicationController
 metadata:
   labels:
     name: mongo
-  name: mongo-controller
+  name: mongo-pod
   namespace: laravel-app-namespace
 spec:
   replicas: 1

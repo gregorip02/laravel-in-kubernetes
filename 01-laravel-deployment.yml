@@ -1,12 +1,12 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: laravel-deployment
+  name: laravel-pod
   namespace: laravel-app-namespace
   labels:
     app: laravel
 spec:
-  replicas: 3
+  replicas: 4
   selector:
     matchLabels:
       app: laravel
