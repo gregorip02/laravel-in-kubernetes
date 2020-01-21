@@ -1,0 +1,91 @@
+# The laravel service
+apiVersion: v1
+kind: Service
+metadata:
+  name: laravel
+  namespace: laravel-app
+spec:
+  type: NodePort
+  selector:
+    app: laravel
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30000
+---
+# The laravel deployment with two containers
+# - laravel-app: FPM with the source code.
+# - nginx-php: Nginx as proxy-pass to laravel-app listening on port 9K
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: laravel
+  namespace: laravel-app
+  labels:
+    app: laravel
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: laravel
+  template:
+    metadata:
+      labels:
+        app: laravel
+    spec:
+      volumes:
+        # A volume to mount the files of our Laravel application.
+        - name: "application-files"
+          emptyDir: {}
+        # A volume to mount our application secrets.
+        - name: environment-secret-volume
+          secret:
+            secretName: environment-secret
+
+      containers:
+      # This container processes php scripts using FPM
+      # listening on port 9000.
+      - name: laravel-app
+        image: gregorip02/laravel-mongo-app:6.2-estable
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 9000
+        volumeMounts:
+          - name: application-files
+            mountPath: /opt/data
+        envFrom:
+          - secretRef:
+              name: environment-secret
+        env:
+          # The image gregorip02/laravel-mongo-app allows you to create
+          # a connection based on the Connection String URI format of mongoDB.
+          - name: MONGO_DNS_STR
+            value: mongodb://$(DB_HOST):$(DB_PORT)/$(DB_DATABASE)?replSet=$(MONGO_RS_NAME)
+        lifecycle:
+          postStart:
+            exec:
+              # It is necessary to copy the files of our Laravel application that
+              # live on the path: /opt/app in the container. to the path
+              # /opt/data where the empty volume is mounted.
+              command: ["/bin/sh", "-c", "cp -rp /opt/app /opt/data"]
+
+      - name: nginx-php
+        image: gregorip02/nginx-php
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+          - name: application-files
+            mountPath: /opt
+            readOnly: true
+        ports:
+          - containerPort: 80
+        env:
+          # The name of you domain or sub-domain
+          - name: NGINX_HOST
+            value: "localhost"
+          # The public root path of yor app
+          - name: NGINX_ROOT
+            value: "/opt/app/public"
+          # We will send the traffic to the 'laravel-fpm'
+          # container in the same pod (localhost) listening on port 9000.
+          - name: NGINX_FASTCGI
+            value: "localhost:9000"

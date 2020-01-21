@@ -1,0 +1,82 @@
+# The mongo service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo
+  namespace: laravel-app
+  labels:
+    name: mongo
+spec:
+  ports:
+  - port: 27017
+    targetPort: 27017
+  clusterIP: None
+  selector:
+    app: mongo
+---
+# RBAC Authorization
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: default-view
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: laravel-app
+---
+# The mongo statefulset
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo
+  namespace: laravel-app
+spec:
+  serviceName: mongo
+  replicas: 2
+  selector:
+    matchLabels:
+      app: mongo
+  volumeClaimTemplates:
+  - metadata:
+      name: mongo-persistent-storage
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: do-block-storage # DigitalOcean block storage
+      volumeMode: Filesystem
+      resources:
+        requests:
+          storage: 5Gi
+  template:
+    metadata:
+      labels:
+        app: mongo
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: mongo
+          image: mongo:3.6-xenial
+          imagePullPolicy: IfNotPresent
+          command:
+            - mongod
+            - "--replSet"
+            - rs0
+            - "--smallfiles"
+            - "--noprealloc"
+            - "--bind_ip_all"
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: mongo-persistent-storage
+              mountPath: /data/db
+        - name: mongo-sidecar
+          image: cvallance/mongo-k8s-sidecar
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MONGO_SIDECAR_POD_LABELS
+              value: "app=mongo"
+            - name: KUBE_NAMESPACE
+              value: "laravel-app"
