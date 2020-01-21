@@ -5,13 +5,13 @@ metadata:
   name: laravel
   namespace: laravel-app
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: laravel
   ports:
-    - port: 80
+    - protocol: TCP
+      port: 80
       targetPort: 80
-      nodePort: 30000
 ---
 # The laravel deployment with two containers
 # - laravel-app: FPM with the source code.
