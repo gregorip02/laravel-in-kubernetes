@@ -1,0 +1,79 @@
+# The laravel service
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: laravel
+  namespace: laravel-app
+spec:
+  type: LoadBalancer
+  selector:
+    app: laravel
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+---
+# The laravel deployment with two containers
+# - laravel-app: FPM with the source code.
+# - nginx-php: Nginx as proxy-pass to laravel-app listening on port 9K
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: laravel
+  namespace: laravel-app
+  labels:
+    app: laravel
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: laravel
+  template:
+    metadata:
+      labels:
+        app: laravel
+    spec:
+      volumes:
+        # A volume to mount our application secrets.
+        - name: laravel-environment
+          secret:
+            secretName: laravel-environment
+            items:
+              - key: .env
+                path: .env
+        # The nginx configmap
+        - name: nginx-configmap
+          configMap:
+            name: nginx-configmap
+
+      containers:
+      # This container processes php & nginx server
+      # listening on port 80.
+      - name: laravel-app
+        image: gregorip02/laravel-mongo-app:6.2-estable
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 80
+        # Mount your volumes, secrets or configmaps in
+        # this section.
+        volumeMounts:
+        - name: nginx-configmap
+          mountPath: /etc/nginx/conf.d
+        - name: laravel-environment
+          mountPath: /root/env
+        # Laravel, or most especificly, the dotenv package require
+        # the .env file in the root app for work.
+        #
+        # We don't use the envFrom directive for automaticly set the
+        # environment vars because laravel will be broken.
+        #
+        # So, we mount the .env file has a secret in /root/env and then
+        # copy this file directly to the app root path.
+        #
+        # PS: I used the "ln -fs" command but it didn't work so I
+        # had to copy the file.
+        lifecycle:
+          postStart:
+            exec:
+              command: ['cp', '/root/env/.env', '/var/www/app/.env']

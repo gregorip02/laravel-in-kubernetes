@@ -1,4 +1,5 @@
 # The mongo service
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -45,7 +46,7 @@ spec:
       name: mongo-persistent-storage
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      storageClassName: do-block-storage # DigitalOcean block storage
+      # storageClassName: do-block-storage # DigitalOcean block storage
       volumeMode: Filesystem
       resources:
         requests:

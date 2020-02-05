@@ -1,0 +1,36 @@
+# A configMap to the nginx web server
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: nginx-configmap
+  namespace: laravel-app
+data:
+  default.conf: |
+    server {
+      listen 80;
+      server_name localhost;
+      root /var/www/app/public;
+      index index.html index.htm index.php;
+
+      charset utf-8;
+
+      location = /favicon.ico { log_not_found off; access_log off; }
+      location = /robots.txt  { log_not_found off; access_log off; }
+
+      error_page 404 /index.php;
+
+      location / {
+        try_files $uri $uri/ /index.php$is_args$args;
+      }
+
+      location ~ \.php$ {
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        include fastcgi.conf;
+      }
+
+      location ~ /\.ht {
+          deny all;
+      }
+    }
+---

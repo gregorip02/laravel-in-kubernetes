@@ -1,1 +1,4 @@
-01-secrets.yml
+.env
+.env.*
+!.env.example
+*secrets.yml
